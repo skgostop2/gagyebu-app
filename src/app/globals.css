@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/*
+  디자인 시스템 — 미래형 SF, 다크모드 기본 (요구사항 62)
+  배경: 딥 네이비/다크 차콜, 카드: 어두운 블루그레이
+  핵심: 네온 블루, 보조: 시안, 강조: 퍼플
+  상태색: 안정 민트, 주의 오렌지, 위험 레드
+*/
+@theme {
+  --color-bg: #0a0e17;
+  --color-bg-elevated: #0f1420;
+  --color-surface: #141b2b;
+  --color-surface-hover: #1a2338;
+  --color-border: #232d42;
+
+  --color-neon-blue: #3b82f6;
+  --color-cyan: #22d3ee;
+  --color-purple: #a855f7;
+
+  --color-status-stable: #34d399;
+  --color-status-caution: #fbbf24;
+  --color-status-warning: #fb923c;
+  --color-status-danger: #f87171;
+
+  --color-text-primary: #f5f7fa;
+  --color-text-secondary: #9ca3b0;
+  --color-text-muted: #6b7280;
+
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 라이트모드 선택 시 적용 (요구사항 62 — 다크모드 기본, 라이트모드 선택 가능) */
+[data-theme="light"] {
+  --color-bg: #f5f7fa;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0f2f6;
+  --color-border: #e2e5ec;
+  --color-text-primary: #101522;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #6b7280;
+}
+
+[data-theme="light"] html {
+  color-scheme: light;
+}
+
+/* 터치 버튼 최소 크기 확보 (접근성 요구사항 60) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* 과도한 글로우 대신 은은한 네온 테두리 */
+.neon-border {
+  border: 1px solid var(--color-border);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.08), 0 0 16px rgba(59, 130, 246, 0.06);
+}

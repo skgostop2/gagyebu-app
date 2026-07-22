@@ -1,0 +1,11 @@
+{
+  "name": "가족 가계부",
+  "short_name": "가계부",
+  "description": "가족 공동 가계부·미래소득 대응·자산관리 플랫폼",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#0a0e17",
+  "lang": "ko",
+  "icons": []
+}
