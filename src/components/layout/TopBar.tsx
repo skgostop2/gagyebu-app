@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 
 /** 태블릿·PC에서 표시되는 상단 바 — 로그인한 사용자의 실제 가정 이름과 읽지 않은 알림 수를 표시한다 */
 export async function TopBar() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   let householdName = "";
   let unreadCount = 0;

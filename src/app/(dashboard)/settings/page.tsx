@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { LogoutButton } from "@/components/settings/LogoutButton";
+import { ProfileForm } from "@/components/settings/ProfileForm";
 import { ExportTransactionsButton } from "@/components/settings/ExportTransactionsButton";
 import { ImportTransactionsForm } from "@/components/settings/ImportTransactionsForm";
 import { BackupDownloadButton } from "@/components/settings/BackupDownloadButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { AUDIT_TABLE_LABEL, AUDIT_ACTION_LABEL } from "@/lib/audit-labels";
 import { formatDateKo } from "@/lib/utils";
@@ -12,11 +13,14 @@ import { formatDateKo } from "@/lib/utils";
 /** 설정 화면 — 최근 변경이력(요구사항: 수정·삭제 이력)을 함께 보여준다 */
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
-  const membership = user ? await getCurrentMembership(supabase, user.id) : null;
+  const [membership, { data: profile }] = await Promise.all([
+    user ? getCurrentMembership(supabase, user.id) : Promise.resolve(null),
+    user
+      ? supabase.from("user_profiles").select("display_name, phone").eq("id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
   const [{ data: isAdmin }, { data: household }] = user
     ? await Promise.all([
@@ -57,6 +61,17 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <h1 className="text-xl font-semibold text-text-primary">설정</h1>
+
+      {user && (
+        <Card>
+          <h2 className="mb-3 text-sm font-medium text-text-primary">내 정보</h2>
+          <ProfileForm
+            userId={user.id}
+            initialDisplayName={profile?.display_name ?? ""}
+            initialPhone={profile?.phone ?? null}
+          />
+        </Card>
+      )}
 
       <Card>
         <p className="mb-3 text-sm text-text-secondary">
