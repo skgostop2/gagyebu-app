@@ -67,58 +67,120 @@ export function computeInputHash(input: RecommendInput): string {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
-/** AI_API_KEY가 설정된 경우에만 실제 호출한다. 미설정 시 "not_configured"로 응답한다. */
+type AiProvider = "anthropic" | "openai";
+
+/**
+ * 어느 제공자를 쓸지 결정한다.
+ * - AI_PROVIDER를 명시하면 그대로 따른다.
+ * - 명시하지 않으면 등록된 키를 보고 자동판별한다(Anthropic 키 우선, 없으면 OpenAI 키).
+ * - 둘 다 없으면 null(미설정).
+ */
+function resolveProvider(): AiProvider | null {
+  const explicit = process.env.AI_PROVIDER?.toLowerCase();
+  if (explicit === "anthropic" || explicit === "openai") return explicit;
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (anthropicKey) return "anthropic";
+  if (openaiKey) return "openai";
+  return null;
+}
+
+function userPrompt(payloadJson: string): string {
+  return `아래는 한 가정의 이번 달 재무 계산 결과입니다(JSON). 이 수치를 바탕으로 이해하기 쉬운 조언을 작성해 주세요.\n\n${payloadJson}`;
+}
+
+async function callAnthropic(payloadJson: string): Promise<AiRecommendOutcome | AiRecommendFailure> {
+  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
+  const model = process.env.AI_MODEL || "claude-sonnet-4-5-20250929";
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey!,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt(payloadJson) }],
+    }),
+  });
+
+  if (!response.ok) {
+    return { ok: false, reason: "api_error", message: `AI 호출 중 문제가 발생했습니다. (status ${response.status})` };
+  }
+
+  const data = (await response.json()) as { content?: { type: string; text?: string }[] };
+  const text = (data.content ?? [])
+    .filter((block) => block.type === "text" && block.text)
+    .map((block) => block.text)
+    .join("\n")
+    .trim();
+
+  if (!text) {
+    return { ok: false, reason: "api_error", message: "AI 응답을 해석하지 못했습니다." };
+  }
+  return { ok: true, text, inputHash: "" };
+}
+
+async function callOpenAi(payloadJson: string): Promise<AiRecommendOutcome | AiRecommendFailure> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt(payloadJson) },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    return { ok: false, reason: "api_error", message: `AI 호출 중 문제가 발생했습니다. (status ${response.status})` };
+  }
+
+  const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+
+  if (!text) {
+    return { ok: false, reason: "api_error", message: "AI 응답을 해석하지 못했습니다." };
+  }
+  return { ok: true, text, inputHash: "" };
+}
+
+/**
+ * 등록된 키에 따라 Anthropic(Claude) 또는 OpenAI(ChatGPT) 중 하나를 자동으로 호출한다.
+ * 둘 다 미설정이면 "not_configured"로 응답한다. (요구사항: 특정 벤더에 종속되지 않도록 구조를 분리)
+ */
 export async function requestAiRecommendation(input: RecommendInput): Promise<AiRecommendOutcome | AiRecommendFailure> {
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey) {
+  const provider = resolveProvider();
+  if (!provider) {
     return {
       ok: false,
       reason: "not_configured",
-      message: "AI 상세권고 기능이 아직 설정되지 않았습니다. 관리자가 AI_API_KEY를 등록하면 사용할 수 있습니다.",
+      message:
+        "AI 상세권고 기능이 아직 설정되지 않았습니다. 관리자가 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY 중 하나를 등록하면 사용할 수 있습니다.",
     };
   }
 
   const payload = buildAnonymizedPayload(input);
+  const payloadJson = JSON.stringify(payload, null, 2);
   const inputHash = computeInputHash(input);
-  const model = process.env.AI_MODEL || "claude-sonnet-4-5-20250929";
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `아래는 한 가정의 이번 달 재무 계산 결과입니다(JSON). 이 수치를 바탕으로 이해하기 쉬운 조언을 작성해 주세요.\n\n${JSON.stringify(payload, null, 2)}`,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      return { ok: false, reason: "api_error", message: `AI 호출 중 문제가 발생했습니다. (status ${response.status})` };
-    }
-
-    const data = (await response.json()) as { content?: { type: string; text?: string }[] };
-    const text = (data.content ?? [])
-      .filter((block) => block.type === "text" && block.text)
-      .map((block) => block.text)
-      .join("\n")
-      .trim();
-
-    if (!text) {
-      return { ok: false, reason: "api_error", message: "AI 응답을 해석하지 못했습니다." };
-    }
-
-    return { ok: true, text, inputHash };
+    const outcome = provider === "anthropic" ? await callAnthropic(payloadJson) : await callOpenAi(payloadJson);
+    return outcome.ok ? { ...outcome, inputHash } : outcome;
   } catch {
     return { ok: false, reason: "api_error", message: "AI 호출 중 네트워크 문제가 발생했습니다." };
   }

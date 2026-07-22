@@ -69,7 +69,7 @@ export default function SignupPage() {
       <div>
         <h1 className="text-xl font-semibold text-text-primary">회원가입</h1>
         <p className="mt-1 text-sm text-text-secondary">
-          휴대폰 실제 인증은 다음 단계에서 연결됩니다. 지금은 이메일 인증만 진행합니다.
+          가입 후 바로 이용할 수 있습니다. 이메일·휴대폰 인증 연동은 이후 단계에서 제공됩니다.
         </p>
       </div>
 
