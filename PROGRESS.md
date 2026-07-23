@@ -29,6 +29,14 @@
 - **내 정보(전화번호) 조회·수정**: 회원가입 때 입력한 휴대폰 번호는 `handle_new_user` 트리거를 통해 `user_profiles.phone`에 자동 저장되고 있었지만, 지금까지 화면 어디에서도 그 값을 다시 보여주지 않았다(입력만 받고 조회 경로가 없었음). `/settings` 상단에 "내 정보" 카드(`src/components/settings/ProfileForm.tsx`)를 추가해 이름·전화번호를 조회하고 직접 수정·저장할 수 있게 함(RLS는 본인 행만 조회·수정 가능하도록 이미 적용돼 있어 추가 정책 변경 없음).
 - 사라졌던 `/tmp/verify3` 미러 대신 `/tmp/verify4`를 새로 clone해 tsc·eslint·vitest 통과 확인, `npm run build`는 컴파일·정적페이지 생성(32/32)까지 매 시도 성공하나 마지막 "Collecting build traces" 단계가 샌드박스 I/O 특성상 45초 제한을 넘겨 끝까지 확인하지 못함(Vercel 자체 빌드로 최종 확인 예정).
 
+### 배포 후 추가 변경 — 가정별 AI API 키 등록
+사용자 질문("다른 가족은 자기 API 키를 쓰게 해야지")에 대응해, AI 상세권고에 쓰는 API 키를 서버 전역 환경변수 하나로만 공유하던 구조에서 가정별로 자체 키를 등록할 수 있는 구조로 확장했다.
+- 새 테이블 `household_ai_config`(household_id PK, provider, api_key, model, updated_at) — RLS는 owner/admin만 SELECT/INSERT/UPDATE/DELETE 가능(민감정보라 일반 구성원은 직접 조회 불가).
+- 실제 AI 호출 시점에는 일반 구성원도 "사용"은 할 수 있어야 하므로, `is_household_member`만 확인하는 SECURITY DEFINER 함수 `get_household_ai_config(hh_id)`를 별도로 두어 우회 조회 경로를 만들었다(원본 테이블 SELECT 권한은 owner/admin으로 계속 제한됨). 최초 배포 시 anon 역할까지 이 함수를 실행 가능한 상태였던 것을 발견해 `revoke execute ... from anon`으로 즉시 회수(9단계 `close_month`와 동일한 패턴의 문제).
+- `src/lib/ai/recommend.ts`의 `requestAiRecommendation()`이 `householdOverride` 파라미터를 받도록 확장 — 가정이 등록한 키가 있으면 그 키·제공자·모델을 최우선 사용하고, 없으면 기존처럼 서버 전역 `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`로 폴백한다.
+- `/settings`에 "AI API 키 (가정별)" 카드(`src/components/settings/HouseholdAiKeyForm.tsx`)를 owner/admin에게만 노출 — 키 값은 저장 후 화면에 다시 표시하지 않는 write-only 방식이고, 등록 여부·제공자만 보여준다. "키 삭제" 시 공용 키로 자동 되돌아간다.
+- `/tmp/verify4`에서 tsc·eslint·vitest 통과, `npm run build`도 이번엔 트레이스 수집 단계까지 포함해 완전히 성공(32개 라우트 전부 정상 생성) 확인 후 커밋·푸시함.
+
 ---
 
 ## 현재 상태: 15단계(보안 점검·접근성 점검·경량화 마무리) 완료 — MVP 전체 완료
