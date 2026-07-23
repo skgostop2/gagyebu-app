@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { LogoutButton } from "@/components/settings/LogoutButton";
 import { ProfileForm } from "@/components/settings/ProfileForm";
+import { HouseholdAiKeyForm } from "@/components/settings/HouseholdAiKeyForm";
 import { ExportTransactionsButton } from "@/components/settings/ExportTransactionsButton";
 import { ImportTransactionsForm } from "@/components/settings/ImportTransactionsForm";
 import { BackupDownloadButton } from "@/components/settings/BackupDownloadButton";
@@ -33,6 +34,15 @@ export default async function SettingsPage() {
 
   const { data: currentPlan } = household
     ? await supabase.from("pricing_plans").select("name").eq("code", household.plan_code).maybeSingle()
+    : { data: null };
+
+  const canManageAiKey = membership?.role === "owner" || membership?.role === "admin";
+  const { data: aiConfig } = canManageAiKey
+    ? await supabase
+        .from("household_ai_config")
+        .select("provider, updated_at")
+        .eq("household_id", membership!.householdId)
+        .maybeSingle()
     : { data: null };
 
   const [{ data: auditLogs }, { data: members }] = membership
@@ -90,6 +100,17 @@ export default async function SettingsPage() {
         )}
         <LogoutButton />
       </Card>
+
+      {canManageAiKey && (
+        <Card>
+          <h2 className="mb-1 text-sm font-medium text-text-primary">AI API 키 (가정별)</h2>
+          <HouseholdAiKeyForm
+            householdId={membership!.householdId}
+            initialProvider={(aiConfig?.provider as "anthropic" | "openai" | null) ?? null}
+            initialConfiguredAt={aiConfig?.updated_at ?? null}
+          />
+        </Card>
+      )}
 
       {membership && (
         <Card>

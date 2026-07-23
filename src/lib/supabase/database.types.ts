@@ -1,8 +1,3 @@
-/**
- * Supabase 프로젝트(gagyebu)에서 자동 생성한 타입.
- * 스키마가 바뀌면 Supabase MCP의 generate_typescript_types로 다시 생성해 이 파일을 교체한다.
- * 수동으로 편집하지 않는다.
- */
 export type Json =
   | string
   | number
@@ -12,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -589,6 +586,41 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_ai_config: {
+        Row: {
+          api_key: string
+          household_id: string
+          model: string | null
+          provider: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key: string
+          household_id: string
+          model?: string | null
+          provider: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key?: string
+          household_id?: string
+          model?: string | null
+          provider?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_ai_config_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: true
+            referencedRelation: "households"
             referencedColumns: ["id"]
           },
         ]
@@ -1621,6 +1653,12 @@ export type Database = {
           status: string
           updated_at: string
         }
+        SetofOptions: {
+          from: "*"
+          to: "income_scenarios"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       close_month: {
         Args: { p_household_id: string }
@@ -1634,6 +1672,12 @@ export type Database = {
           total_expense: number
           total_income: number
           total_savings: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "monthly_closings"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       create_household: {
@@ -1657,6 +1701,12 @@ export type Database = {
           representative_member_id: string | null
           type: string
           updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "households"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       deactivate_income_scenarios: {
@@ -1685,10 +1735,24 @@ export type Database = {
           type: string
           updated_at: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_household_ai_config: {
+        Args: { hh_id: string }
+        Returns: {
+          api_key: string
+          model: string
+          provider: string
+        }[]
       }
       household_role: { Args: { hh_id: string }; Returns: string }
       is_household_member: { Args: { hh_id: string }; Returns: boolean }
-      is_platform_admin: { Args: Record<PropertyKey, never>; Returns: boolean }
+      is_platform_admin: { Args: never; Returns: boolean }
       join_household_with_code: {
         Args: { p_code: string; p_display_name: string }
         Returns: {
@@ -1699,6 +1763,12 @@ export type Database = {
           role: string
           status: string
           user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "household_members"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       save_asset_snapshot: {
@@ -1715,6 +1785,12 @@ export type Database = {
           snapshot_month: string
           total_assets: number
           total_liabilities: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "asset_snapshots"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       seed_default_categories: {
@@ -1813,3 +1889,43 @@ export type TablesUpdate<
       ? U
       : never
     : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

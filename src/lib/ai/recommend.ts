@@ -33,6 +33,15 @@ export interface AiRecommendFailure {
   message: string;
 }
 
+export type AiProvider = "anthropic" | "openai";
+
+/** 가정별로 직접 등록한 API 키(설정 화면에서 저장) — 있으면 서버 전역 키보다 우선한다 */
+export interface HouseholdAiOverride {
+  provider: AiProvider;
+  apiKey: string;
+  model?: string | null;
+}
+
 /** 계산결과 + 규칙기반 권고만 전달한다 — 카드번호/계좌번호 등 민감정보는 이 객체에 애초에 존재하지 않는다 */
 function buildAnonymizedPayload(input: RecommendInput) {
   const { result, ruleBasedRecommendations } = input;
@@ -67,22 +76,31 @@ export function computeInputHash(input: RecommendInput): string {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
-type AiProvider = "anthropic" | "openai";
+interface ProviderConfig {
+  provider: AiProvider;
+  apiKey: string;
+  model?: string | null;
+}
 
 /**
- * 어느 제공자를 쓸지 결정한다.
- * - AI_PROVIDER를 명시하면 그대로 따른다.
- * - 명시하지 않으면 등록된 키를 보고 자동판별한다(Anthropic 키 우선, 없으면 OpenAI 키).
+ * 실제 호출에 쓸 제공자·키·모델을 결정한다.
+ * - 가정별로 등록한 키(householdOverride)가 있으면 그것을 최우선으로 쓴다(요청사항: 다른 가정은 자기 키를 쓰도록).
+ * - 없으면 서버 전역 환경변수로 폴백한다(AI_PROVIDER 명시 또는 등록된 키로 자동판별, Anthropic 우선).
  * - 둘 다 없으면 null(미설정).
  */
-function resolveProvider(): AiProvider | null {
-  const explicit = process.env.AI_PROVIDER?.toLowerCase();
-  if (explicit === "anthropic" || explicit === "openai") return explicit;
+function resolveProviderConfig(householdOverride?: HouseholdAiOverride | null): ProviderConfig | null {
+  if (householdOverride?.apiKey) {
+    return { provider: householdOverride.provider, apiKey: householdOverride.apiKey, model: householdOverride.model };
+  }
 
+  const explicit = process.env.AI_PROVIDER?.toLowerCase();
   const anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
-  if (anthropicKey) return "anthropic";
-  if (openaiKey) return "openai";
+
+  if (explicit === "anthropic" && anthropicKey) return { provider: "anthropic", apiKey: anthropicKey };
+  if (explicit === "openai" && openaiKey) return { provider: "openai", apiKey: openaiKey };
+  if (anthropicKey) return { provider: "anthropic", apiKey: anthropicKey };
+  if (openaiKey) return { provider: "openai", apiKey: openaiKey };
   return null;
 }
 
@@ -90,15 +108,16 @@ function userPrompt(payloadJson: string): string {
   return `아래는 한 가정의 이번 달 재무 계산 결과입니다(JSON). 이 수치를 바탕으로 이해하기 쉬운 조언을 작성해 주세요.\n\n${payloadJson}`;
 }
 
-async function callAnthropic(payloadJson: string): Promise<AiRecommendOutcome | AiRecommendFailure> {
-  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AI_API_KEY;
-  const model = process.env.AI_MODEL || "claude-sonnet-4-5-20250929";
-
+async function callAnthropic(
+  payloadJson: string,
+  apiKey: string,
+  model: string
+): Promise<AiRecommendOutcome | AiRecommendFailure> {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": apiKey!,
+      "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
@@ -126,10 +145,11 @@ async function callAnthropic(payloadJson: string): Promise<AiRecommendOutcome | 
   return { ok: true, text, inputHash: "" };
 }
 
-async function callOpenAi(payloadJson: string): Promise<AiRecommendOutcome | AiRecommendFailure> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-
+async function callOpenAi(
+  payloadJson: string,
+  apiKey: string,
+  model: string
+): Promise<AiRecommendOutcome | AiRecommendFailure> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -161,16 +181,20 @@ async function callOpenAi(payloadJson: string): Promise<AiRecommendOutcome | AiR
 
 /**
  * 등록된 키에 따라 Anthropic(Claude) 또는 OpenAI(ChatGPT) 중 하나를 자동으로 호출한다.
+ * 가정이 자체 키를 등록했으면 그 키를 쓰고, 없으면 서버 전역 키로 폴백한다.
  * 둘 다 미설정이면 "not_configured"로 응답한다. (요구사항: 특정 벤더에 종속되지 않도록 구조를 분리)
  */
-export async function requestAiRecommendation(input: RecommendInput): Promise<AiRecommendOutcome | AiRecommendFailure> {
-  const provider = resolveProvider();
-  if (!provider) {
+export async function requestAiRecommendation(
+  input: RecommendInput,
+  householdOverride?: HouseholdAiOverride | null
+): Promise<AiRecommendOutcome | AiRecommendFailure> {
+  const config = resolveProviderConfig(householdOverride);
+  if (!config) {
     return {
       ok: false,
       reason: "not_configured",
       message:
-        "AI 상세권고 기능이 아직 설정되지 않았습니다. 관리자가 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY 중 하나를 등록하면 사용할 수 있습니다.",
+        "AI 상세권고 기능이 아직 설정되지 않았습니다. 설정 화면에서 우리 가정의 API 키를 등록하거나, 관리자가 서버에 ANTHROPIC_API_KEY/OPENAI_API_KEY 중 하나를 등록하면 사용할 수 있습니다.",
     };
   }
 
@@ -178,8 +202,16 @@ export async function requestAiRecommendation(input: RecommendInput): Promise<Ai
   const payloadJson = JSON.stringify(payload, null, 2);
   const inputHash = computeInputHash(input);
 
+  const defaultModel = config.provider === "anthropic" ? "claude-sonnet-4-5-20250929" : "gpt-4o-mini";
+  const envModel =
+    config.provider === "anthropic" ? process.env.AI_MODEL : process.env.OPENAI_MODEL;
+  const model = config.model || envModel || defaultModel;
+
   try {
-    const outcome = provider === "anthropic" ? await callAnthropic(payloadJson) : await callOpenAi(payloadJson);
+    const outcome =
+      config.provider === "anthropic"
+        ? await callAnthropic(payloadJson, config.apiKey, model)
+        : await callOpenAi(payloadJson, config.apiKey, model);
     return outcome.ok ? { ...outcome, inputHash } : outcome;
   } catch {
     return { ok: false, reason: "api_error", message: "AI 호출 중 네트워크 문제가 발생했습니다." };

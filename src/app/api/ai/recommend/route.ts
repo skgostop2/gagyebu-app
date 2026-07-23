@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { loadCurrentMonthSummary } from "@/lib/finance-engine/load-monthly-summary";
 import { generateRuleBasedRecommendations } from "@/lib/finance-engine/recommendations";
-import { requestAiRecommendation, computeInputHash } from "@/lib/ai/recommend";
+import { requestAiRecommendation, computeInputHash, type AiProvider } from "@/lib/ai/recommend";
 
 /** 남용 방지용 최종 안전장치 — 요금제 조회가 실패하는 예외 상황에서만 사용하는 하한값 */
 const FALLBACK_MONTHLY_AI_LIMIT = 5;
@@ -89,7 +89,17 @@ export async function POST() {
     });
   }
 
-  const outcome = await requestAiRecommendation({ result, ruleBasedRecommendations });
+  // 가정이 자체 AI API 키를 등록했으면 그걸 우선 사용한다(설정 화면 → owner/admin만 등록 가능).
+  // 일반 구성원도 이 값을 "사용"은 할 수 있어야 하므로 SECURITY DEFINER 함수를 거쳐 조회한다.
+  const { data: aiConfigRows } = await supabase.rpc("get_household_ai_config", {
+    hh_id: membership.householdId,
+  });
+  const aiConfig = aiConfigRows?.[0];
+  const householdOverride = aiConfig
+    ? { provider: aiConfig.provider as AiProvider, apiKey: aiConfig.api_key, model: aiConfig.model }
+    : null;
+
+  const outcome = await requestAiRecommendation({ result, ruleBasedRecommendations }, householdOverride);
 
   if (!outcome.ok) {
     await supabase.from("ai_usage_logs").insert({
