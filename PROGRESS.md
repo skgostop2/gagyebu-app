@@ -41,6 +41,11 @@
 사용자가 "항목 클릭하면 여전히 느리다"고 재확인 → 앞서 `layout.tsx`/`TopBar.tsx`/`settings`에만 적용했던 `getAuthUser()` 캐시 헬퍼를, `supabase.auth.getUser()`를 직접 호출하던 나머지 대시보드 페이지 20개 전부와 `(auth)`/`(onboarding)` 레이아웃까지 확대 적용했다. 이제 한 번의 페이지 이동(서버 렌더 1회) 안에서는 로그인 확인이 몇 번을 호출되든 실제 네트워크 요청은 1번만 발생한다. 부수적으로 `transactions/new/page.tsx`의 미사용 타입 import(`SelectableTransactionType`, 이번 변경과 무관한 기존 경고)도 함께 정리했다.
 `/tmp/verify4`에서 tsc·eslint(0 경고)·vitest 통과 확인. `npm run build`는 컴파일까지는 매 시도 10~16초로 빨랐으나 이번엔 "Linting and checking validity of types" 단계에서 반복적으로 45초 제한에 걸려 끝까지 확인하지 못함(직전 커밋에서는 같은 환경으로 전체 빌드 성공을 이미 확인한 바 있어 코드 문제가 아닌 샌드박스 부하로 판단) — Vercel 자체 빌드로 최종 확인 예정.
 
+### 배포 후 추가 변경 — 화면전환 진짜 병목 발견: 미들웨어
+페이지·레이아웃을 전부 `getAuthUser()`로 바꿨는데도 사용자가 "클릭해도 한참 걸린다"고 재차 지적 → 원인은 `src/lib/supabase/middleware.ts`였다. Next.js 미들웨어는 사이드바 클릭 같은 클라이언트 사이드 네비게이션에도 매번 실행되는데, 여기서 `supabase.auth.getUser()`를 쓰고 있었다. `getUser()`는 (보안을 위해) 매번 Supabase Auth 서버로 네트워크 왕복을 해서 JWT를 재검증하는 함수라, React `cache()`로 페이지 쪽 중복호출을 아무리 없애도 미들웨어의 이 왕복 자체는 전혀 줄어들지 않았던 것 — 즉 지금까지의 최적화는 병목의 일부만 건드린 것이었다.
+`getSession()`(쿠키에 담긴 JWT를 네트워크 호출 없이 로컬에서 서명 검증만 하는 함수)으로 교체했다. 미들웨어는 어차피 "비로그인 사용자를 /login으로 보내는" UX 게이트일 뿐이고, 실제 데이터 접근 권한은 각 서버 컴포넌트·API 라우트의 `getAuthUser()` 재확인과 무엇보다 Supabase RLS가 최종적으로 강제하므로 보안 저하 없이 안전하게 바꿀 수 있는 지점이었다.
+`/tmp/verify4`에서 tsc·eslint(0 경고)·vitest 통과 확인. `npm run build`는 여러 차례 시도 중 한 번은 32개 라우트 전부 정상 생성까지 확인했고, 나머지 시도는 샌드박스 부하로 "Linting and checking validity of types" 단계에서 45초 제한에 걸림(코드 문제 아님, 이미 통과 이력 있음) — Vercel 자체 빌드로 최종 확인 예정.
+
 ---
 
 ## 현재 상태: 15단계(보안 점검·접근성 점검·경량화 마무리) 완료 — MVP 전체 완료
