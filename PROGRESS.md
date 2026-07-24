@@ -37,6 +37,10 @@
 - `/settings`에 "AI API 키 (가정별)" 카드(`src/components/settings/HouseholdAiKeyForm.tsx`)를 owner/admin에게만 노출 — 키 값은 저장 후 화면에 다시 표시하지 않는 write-only 방식이고, 등록 여부·제공자만 보여준다. "키 삭제" 시 공용 키로 자동 되돌아간다.
 - `/tmp/verify4`에서 tsc·eslint·vitest 통과, `npm run build`도 이번엔 트레이스 수집 단계까지 포함해 완전히 성공(32개 라우트 전부 정상 생성) 확인 후 커밋·푸시함.
 
+### 배포 후 추가 변경 — 화면전환 성능개선 범위 확대
+사용자가 "항목 클릭하면 여전히 느리다"고 재확인 → 앞서 `layout.tsx`/`TopBar.tsx`/`settings`에만 적용했던 `getAuthUser()` 캐시 헬퍼를, `supabase.auth.getUser()`를 직접 호출하던 나머지 대시보드 페이지 20개 전부와 `(auth)`/`(onboarding)` 레이아웃까지 확대 적용했다. 이제 한 번의 페이지 이동(서버 렌더 1회) 안에서는 로그인 확인이 몇 번을 호출되든 실제 네트워크 요청은 1번만 발생한다. 부수적으로 `transactions/new/page.tsx`의 미사용 타입 import(`SelectableTransactionType`, 이번 변경과 무관한 기존 경고)도 함께 정리했다.
+`/tmp/verify4`에서 tsc·eslint(0 경고)·vitest 통과 확인. `npm run build`는 컴파일까지는 매 시도 10~16초로 빨랐으나 이번엔 "Linting and checking validity of types" 단계에서 반복적으로 45초 제한에 걸려 끝까지 확인하지 못함(직전 커밋에서는 같은 환경으로 전체 빌드 성공을 이미 확인한 바 있어 코드 문제가 아닌 샌드박스 부하로 판단) — Vercel 자체 빌드로 최종 확인 예정.
+
 ---
 
 ## 현재 상태: 15단계(보안 점검·접근성 점검·경량화 마무리) 완료 — MVP 전체 완료
