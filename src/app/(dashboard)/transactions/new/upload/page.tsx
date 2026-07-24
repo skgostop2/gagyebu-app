@@ -1,14 +1,12 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { PhotoUploadForm } from "@/components/transactions/PhotoUploadForm";
 
 /** 사진·PDF로 거래 등록 (10단계, 요구사항: 업로드→분석→검토→확정 흐름) */
 export default async function UploadTransactionPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) redirect("/household/new");

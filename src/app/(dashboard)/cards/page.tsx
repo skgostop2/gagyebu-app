@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CreditCard, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { CardForm } from "@/components/cards/CardForm";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { CARD_TYPE_LABEL, currentYearMonth, isDueInMonth, monthlyDueAmount } from "@/lib/card-labels";
 import { formatKRW } from "@/lib/utils";
@@ -10,9 +10,7 @@ import { formatKRW } from "@/lib/utils";
 /** 카드 목록 + 등록 (요구사항 20, 21) */
 export default async function CardsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

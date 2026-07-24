@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/Card";
 import { CreateInvitationButton } from "@/components/household/CreateInvitationButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 
 const roleLabel: Record<string, string> = {
   owner: "가정 소유자",
@@ -9,11 +9,10 @@ const roleLabel: Record<string, string> = {
   viewer: "조회 전용",
 };
 
+/** 가족관리 — 실제 DB에서 가정·구성원을 조회한다 (요구사항 14) */
 export default async function HouseholdPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const { data: myMembership } = await supabase
     .from("household_members")

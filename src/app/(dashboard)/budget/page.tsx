@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { BudgetForm } from "@/components/budget/BudgetForm";
 import { DeleteBudgetButton } from "@/components/budget/DeleteBudgetButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import {
   BUDGET_SCOPE_LABEL,
@@ -23,9 +23,7 @@ const HEALTH_ICON: Record<string, string> = {
 /** 예산 등록 + 사용률·알림임계치 표시 (요구사항 23) */
 export default async function BudgetPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

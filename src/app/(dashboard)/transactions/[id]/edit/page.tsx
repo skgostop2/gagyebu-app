@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import type { SelectableTransactionType } from "@/lib/transaction-labels";
@@ -11,9 +11,7 @@ export default async function EditTransactionPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) redirect("/household/new");

@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/Card";
 import { SavingsAccountForm } from "@/components/savings/SavingsAccountForm";
 import { InvestmentForm } from "@/components/savings/InvestmentForm";
 import { DeleteSavingsButton } from "@/components/savings/DeleteSavingsButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { INVESTMENT_TYPE_LABEL, savingsGoalRate, investmentGain, type InvestmentType } from "@/lib/asset-labels";
 import { formatKRW, formatPercent } from "@/lib/utils";
@@ -10,9 +10,7 @@ import { formatKRW, formatPercent } from "@/lib/utils";
 /** 저축·투자 등록 + 목표 달성률·손익 표시 (요구사항 24, 25) */
 export default async function SavingsInvestmentsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

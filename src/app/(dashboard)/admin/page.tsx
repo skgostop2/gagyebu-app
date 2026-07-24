@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/Card";
 import { InquiryReplyForm } from "@/components/admin/InquiryReplyForm";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { formatDateKo } from "@/lib/utils";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -12,9 +12,7 @@ const STATUS_LABEL: Record<string, string> = {
 /** 운영자 콘솔 (14단계) — 가정 목록·AI 사용량·문의 조회/답변. is_platform_admin이 아니면 접근 거부. */
 export default async function AdminPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     return <p className="p-6 text-sm text-text-secondary">로그인이 필요합니다.</p>;

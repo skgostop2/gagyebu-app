@@ -1,14 +1,12 @@
 import { Card } from "@/components/ui/Card";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { formatKRW } from "@/lib/utils";
 
 /** 요금제 안내 화면 (14단계) — 결제 연동은 이후 단계 과제, 지금은 요금제 구조·표시·한도 적용까지 */
 export default async function PricingPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
 

@@ -2,16 +2,14 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { MaintenanceFeeForm } from "@/components/maintenance/MaintenanceFeeForm";
 import { DeleteMaintenanceFeeButton } from "@/components/maintenance/DeleteMaintenanceFeeButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { formatKRW } from "@/lib/utils";
 
 /** 관리비 등록 + 이력·변화 분석 (요구사항 22) */
 export default async function MaintenanceFeePage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

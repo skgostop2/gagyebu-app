@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { IncomeScenarioForm } from "@/components/scenarios/IncomeScenarioForm";
 import { ScenarioActions } from "@/components/scenarios/ScenarioActions";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { INCOME_SCENARIO_KIND_LABEL, type IncomeScenarioKind } from "@/lib/income-scenario-labels";
 import { formatKRW, formatDateShortKo } from "@/lib/utils";
@@ -9,9 +9,7 @@ import { formatKRW, formatDateShortKo } from "@/lib/utils";
 /** 미래수입 시나리오 등록·적용 (요구사항 30) — 적용된 시나리오는 대시보드·기본권고 계산에 즉시 반영된다 */
 export default async function IncomeScenariosPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

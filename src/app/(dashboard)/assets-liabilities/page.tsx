@@ -3,7 +3,7 @@ import { AssetForm } from "@/components/assets/AssetForm";
 import { LiabilityForm } from "@/components/assets/LiabilityForm";
 import { DeleteAssetButton } from "@/components/assets/DeleteAssetButton";
 import { SaveSnapshotButton } from "@/components/assets/SaveSnapshotButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { ASSET_CATEGORY_LABEL, ASSET_KIND_LABEL, LIABILITY_KIND_LABEL, type AssetCategory, type LiabilityKind } from "@/lib/asset-labels";
 import { formatKRW, formatDateShortKo } from "@/lib/utils";
@@ -11,9 +11,7 @@ import { formatKRW, formatDateShortKo } from "@/lib/utils";
 /** 자산·부채 등록 + 순자산 자동계산 + 월별 스냅샷 (요구사항 26, 27, 28) */
 export default async function AssetsLiabilitiesPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

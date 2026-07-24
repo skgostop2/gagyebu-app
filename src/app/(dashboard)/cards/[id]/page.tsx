@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { CardTransactionForm } from "@/components/cards/CardTransactionForm";
 import { DeleteCardTransactionButton } from "@/components/cards/DeleteCardTransactionButton";
 import { DeleteCardButton } from "@/components/cards/DeleteCardButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { CARD_TYPE_LABEL, currentYearMonth, isDueInMonth, monthlyDueAmount } from "@/lib/card-labels";
 import { formatKRW, formatDateShortKo } from "@/lib/utils";
@@ -13,9 +13,7 @@ import { formatKRW, formatDateShortKo } from "@/lib/utils";
 export default async function CardDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

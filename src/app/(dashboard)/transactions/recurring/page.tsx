@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { RecurringForm } from "@/components/transactions/RecurringForm";
 import { GenerateRecurringButton } from "@/components/transactions/GenerateRecurringButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { TRANSACTION_TYPE_LABEL } from "@/lib/transaction-labels";
 import { formatKRW } from "@/lib/utils";
@@ -15,11 +15,10 @@ const FREQUENCY_LABEL: Record<string, string> = {
   custom: "사용자 지정",
 };
 
+/** 반복거래 관리 (요구사항 44) — 등록은 관리자 이상만 가능하도록 RLS로 강제됨 */
 export default async function RecurringTransactionsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) redirect("/household/new");

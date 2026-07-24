@@ -1,16 +1,14 @@
 import { Card } from "@/components/ui/Card";
 import { MarkReadButton } from "@/components/notifications/MarkReadButton";
 import { MarkAllReadButton } from "@/components/notifications/MarkAllReadButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { formatDateKo } from "@/lib/utils";
 
 /** 앱 내부 알림 목록 (9단계, 요구사항: 앱 내부 알림) — 가정 공용, 누구든 읽음 처리 가능 */
 export default async function NotificationsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

@@ -3,7 +3,7 @@ import { Plus, Pencil, Repeat, Paperclip } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DeleteTransactionButton } from "@/components/transactions/DeleteTransactionButton";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { TRANSACTION_TYPE_LABEL } from "@/lib/transaction-labels";
 import { formatKRW, formatDateShortKo } from "@/lib/utils";
@@ -14,9 +14,7 @@ import { formatKRW, formatDateShortKo } from "@/lib/utils";
  */
 export default async function TransactionsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
 

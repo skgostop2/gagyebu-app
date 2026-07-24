@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { generateRuleBasedRecommendations } from "@/lib/finance-engine/recommendations";
 import { loadCurrentMonthSummary } from "@/lib/finance-engine/load-monthly-summary";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 
 // 15단계 경량화 — recharts는 홈 화면 초기 번들에서 제외하고 지연로딩한다 (reports 화면과 동일한 패턴)
@@ -21,9 +21,7 @@ const TrendChart = dynamic(() => import("@/components/dashboard/TrendChart").the
 /** 간결한 대시보드 홈 (요구사항 35) — 핵심 카드 최대 6개 + 그래프 1개 + 권고 최대 3개 */
 export default async function DashboardHomePage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   const now = new Date();

@@ -4,7 +4,7 @@ import { ko } from "date-fns/locale";
 import { Card } from "@/components/ui/Card";
 import { CloseMonthButton } from "@/components/reports/CloseMonthButton";
 import { ReportActions } from "@/components/reports/ReportActions";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 import { computeBudgetUsage, computeBudgetHealth, BUDGET_SCOPE_LABEL } from "@/lib/budget-labels";
 import { formatKRW, formatDateShortKo } from "@/lib/utils";
@@ -38,9 +38,7 @@ const CATEGORY_PALETTE = ["#22d3ee", "#a855f7", "#3b82f6", "#34d399", "#fbbf24",
 
 export default async function ReportsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   if (!membership) {

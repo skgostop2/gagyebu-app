@@ -4,7 +4,7 @@ import { RecommendationList } from "@/components/dashboard/RecommendationList";
 import { AIRecommendationButton } from "@/components/recommendations/AIRecommendationButton";
 import { generateRuleBasedRecommendations } from "@/lib/finance-engine/recommendations";
 import { loadCurrentMonthSummary } from "@/lib/finance-engine/load-monthly-summary";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/current-household";
 
 /**
@@ -13,9 +13,7 @@ import { getCurrentMembership } from "@/lib/supabase/current-household";
  */
 export default async function RecommendationsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   const membership = user ? await getCurrentMembership(supabase, user.id) : null;
   const result = await loadCurrentMonthSummary(supabase, membership!.householdId);
